@@ -59,7 +59,7 @@ def get_driver_laps(year, event_name, driver_abbr):
         session = load_session(year, event_name, 'R')
         if session is None:
             return None
-        laps = session.laps.pick_driver(driver_abbr)
+        laps = session.laps.pick_drivers(driver_abbr)
         return laps
     except Exception as e:
         st.error(f"Error loading driver laps: {e}")
@@ -101,8 +101,8 @@ def get_driver_comparison(year, event_name, driver1, driver2):
         if session is None:
             return None, None
         
-        laps1 = session.laps.pick_driver(driver1)
-        laps2 = session.laps.pick_driver(driver2)
+        laps1 = session.laps.pick_drivers(driver1)
+        laps2 = session.laps.pick_drivers(driver2)
         
         return laps1, laps2
     except Exception as e:
@@ -118,7 +118,7 @@ def get_lap_telemetry(year, event_name, driver_abbr, lap_number):
         if session is None:
             return None
         
-        laps = session.laps.pick_driver(driver_abbr)
+        laps = session.laps.pick_drivers(driver_abbr)
         if lap_number > len(laps) or lap_number < 1:
             return None
         

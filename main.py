@@ -18,7 +18,9 @@ from visualization import (
 from race_visualizer import (
     plot_position_changes_over_race, plot_fastest_lap_comparison,
     plot_driver_lap_comparison, plot_speed_heatmap_by_driver,
-    plot_lap_time_distribution
+    plot_lap_time_distribution, plot_dynamic_track_animation,
+    plot_multi_driver_race_animation, plot_race_progression_animation,
+    plot_live_track_position_animation
 )
 from utils import get_seasons, get_events, format_time_detailed
 
@@ -214,12 +216,15 @@ elif page == "Race Visualizer":
     st.markdown("Analyze driver positions and performance throughout the race using real track coordinates.")
     
     # Tab selection for different visualizations
-    viz_tab1, viz_tab2, viz_tab3, viz_tab4, viz_tab5 = st.tabs([
+    viz_tab1, viz_tab2, viz_tab3, viz_tab4, viz_tab5, viz_tab6, viz_tab7, viz_tab8 = st.tabs([
         "Position Changes Over Race",
         "Fastest Lap Analysis",
         "Driver Comparison",
         "Speed Heatmaps",
-        "Lap Time Distribution"
+        "Lap Time Distribution",
+        "Single Driver Fastest Lap Animation",
+        "Multi-Driver Animation",
+        "Full Race Animation"
     ])
     
     with viz_tab1:
@@ -254,6 +259,44 @@ elif page == "Race Visualizer":
         st.subheader("Lap Time Consistency Analysis")
         st.markdown("Analyze lap time distribution and consistency for the top 10 drivers.")
         plot_lap_time_distribution(session, driver_names_map)
+    
+    with viz_tab6:
+        st.subheader("Dynamic Single Driver Animation")
+        st.markdown("Watch a selected driver navigate around the track with live speed and position data.")
+        
+        drivers = sorted(session.drivers)
+        selected_driver = st.selectbox("Select Driver to Animate:", drivers, format_func=get_driver_label, key="anim_driver")
+        frame_skip = st.slider("Animation Speed (lower = faster):", 1, 20, 5)
+        
+        if selected_driver:
+            with st.spinner(f"Creating animation for {get_driver_label(selected_driver)}..."):
+                plot_dynamic_track_animation(session, selected_driver, driver_names_map, frame_skip=frame_skip)
+    
+    with viz_tab7:
+        st.subheader("Multi-Driver Race Animation")
+        st.markdown("Watch multiple drivers race simultaneously, comparing their fastest laps.")
+        
+        drivers = sorted(session.drivers)
+        selected_drivers = st.multiselect(
+            "Select Drivers to Compare:",
+            drivers,
+            format_func=get_driver_label,
+            default=drivers[:3] if len(drivers) >= 3 else drivers
+        )
+        frame_skip = st.slider("Animation Speed (lower = faster):", 1, 20, 10, key="multi_frame_skip")
+        
+        if selected_drivers and len(selected_drivers) > 0:
+            with st.spinner(f"Creating animation for {len(selected_drivers)} drivers..."):
+                plot_multi_driver_race_animation(session, selected_drivers, driver_names_map, frame_skip=frame_skip)
+    
+    with viz_tab8:
+        st.subheader("Live Track Position Animation")
+        st.markdown("Watch the entire race unfold on the actual track! See all drivers navigating the circuit lap by lap with their live positions and trajectories.")
+        
+        points_per_frame = st.slider("Animation Speed (points per frame - lower = faster):", 1, 20, 5, key="track_anim_speed")
+        
+        with st.spinner("Creating live track animation (this may take 2-3 minutes)..."):
+            plot_live_track_position_animation(session, driver_names_map, points_per_frame=points_per_frame)
 
 # Analyze tire compound usage and degradation patterns throughout the race
 elif page == "Tire Strategy":
