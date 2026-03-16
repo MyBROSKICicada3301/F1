@@ -1,103 +1,49 @@
-# 🏎️ F1 Interactive Dashboard - Pit Wall Tool
+# F1 Interactive Dashboard
 
-A web-based dashboard for exploring historical F1 race data, telemetry, and driver comparisons using **FastF1**, **Streamlit**, and **Pandas**.
+A web-based dashboard for exploring F1 race data, telemetry, and driver comparisons using **FastF1** and **Streamlit**.
 
-## Features
+## Quick Start
 
-### 🏁 **Race Results**
-- View top 10 finishers with points
-- Visual bar chart of podium finishers
-- Race statistics summary
-
-### 📊 **Driver Analysis**
-- Select any driver and view their race statistics
-- Lap time progression throughout the race
-- Sector-by-sector performance breakdown
-- Tire degradation analysis
-
-### ⚔️ **Driver Comparison**
-- Compare two drivers' lap times side-by-side
-- Identify relative performance gaps
-- Lap-by-lap detailed comparison table
-
-### 📈 **Lap Telemetry**
-- View detailed telemetry data (speed, throttle, etc.) for any lap
-- Slider to select specific laps
-- Speed and throttle visualization with distance
-
-### 🛞 **Tire Strategy**
-- Analyze tire compounds used by each driver
-- Tire age progression throughout the race
-- Strategic pit stop patterns
-
-## Tech Stack
-
-- **Python 3.8+** - Core programming language
-- **FastF1** - Official F1 data fetching library
-- **Streamlit** - Interactive web dashboard
-- **Pandas** - Data manipulation and analysis
-- **NumPy** - Numerical computations
-- **Matplotlib & Seaborn** - Data visualization
-- **Plotly** - Interactive charts
-
-## Installation
-
-### 1. Clone/Setup Project
-```bash
-cd d:\FUN\F1
-```
-
-### 2. Create Virtual Environment
 ```powershell
 python -m venv .venv
 .\.venv\Scripts\Activate.ps1
-```
-
-### 3. Install Dependencies
-```bash
 pip install -r requirements.txt
-```
-
-## Usage
-
-### Run the Dashboard
-```bash
 streamlit run main.py
 ```
 
-The app will open at `http://localhost:8501` in your browser.
+Open `http://localhost:8501` in your browser.
 
-### How to Use
-1. **Select Season** - Choose from recent F1 seasons (last 5 years)
-2. **Select Grand Prix** - Pick your favorite race
-3. **Select Session** - Choose Race (R), Qualifying (Q), or Practice (FP1/FP2/FP3)
-4. **Navigate** - Use the sidebar to switch between different analysis views
-5. **Explore** - Select drivers and analyze their performance
+## Features
+
+- **Race Results** - Podium finishers and race statistics
+- **Driver Analysis** - Lap times, sector performance, tire degradation
+- **Driver Comparison** - Head-to-head lap time analysis
+- **Lap Telemetry** - Speed, throttle, and distance data visualization
+- **Race Visualizer** - Position changes, track maps, and speed heatmaps
+- **Tire Strategy** - Compound analysis and pit stop patterns
 
 ## Project Structure
 
 ```
-F1/
-├── main.py              # Main Streamlit app and page layouts
-├── data_loader.py       # FastF1 data loading and caching
-├── visualization.py     # Matplotlib/seaborn plotting functions
-├── utils.py            # Helper functions (formatting, season/event fetching)
-├── requirements.txt     # Python package dependencies
-├── .gitignore          # Git ignore file
-└── README.md           # This file
+├── main.py              # Streamlit app with 6-page navigation
+├── data_loader.py       # FastF1 data fetching and caching
+├── visualization.py     # Performance analysis plots
+├── race_visualizer.py   # Track-based race visualizations
+├── utils.py            # Helpers (time formatting, season/event data)
+└── requirements.txt     # Dependencies
 ```
 
-## Data Caching
+## Tech Stack
 
-The dashboard uses Streamlit caching to speed up repeated queries:
-- Session data is cached for 1 hour
-- FastF1 local cache stores all downloaded data
-- First load may take 10-30 seconds; subsequent loads are instant
+Python 3.14 | FastF1 | Streamlit | Pandas | Matplotlib
 
-## Extended Features (Future Ideas)
+## To-Do
 
-- **Predictive Models** - Use scikit-learn to predict race outcomes
-- **Season Statistics** - Compare drivers across entire seasons
+- [ ] Fix ValueError: cannot convert float NaN to integer (telemetry parsing)
+- [ ] Debug race visualizer track rendering issues
+- [ ] Replace deprecated Streamlit `use_container_width` parameter
+- [ ] Add corner annotations to track maps
+- [ ] Optimize performance for large datasets
 - **Weather Analysis** - Correlate weather data with performance
 - **Monte Carlo Simulations** - Predict championship scenarios
 - **Interactive Track Maps** - Fan-animated corner speed visualization
@@ -132,4 +78,4 @@ This project is for educational purposes and uses publicly available F1 data thr
 
 ---
 
-**Happy analyzing! 🏁**
+**Happy analyzing! ☮️**
