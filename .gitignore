@@ -33,7 +33,7 @@ env/
 f1_cache/
 
 # Streamlit
-streamlit_test.log
+.streamlit_test.log
 .cache/
 
 # IDE
