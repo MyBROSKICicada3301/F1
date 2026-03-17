@@ -10,9 +10,88 @@ import numpy as np
 import fastf1.plotting as plotting
 from utils import format_time_detailed
 from matplotlib.animation import PillowWriter
+from matplotlib.offsetbox import OffsetImage, AnnotationBbox
+from matplotlib.patches import Circle
 import io
 import tempfile
 import os
+
+
+# Team colors mapping for F1 teams (official 2024 season colors)
+TEAM_COLORS = {
+    'Ferrari': '#DC0000',           # Red
+    'Red Bull': '#00008F',          # Dark Blue
+    'Mercedes': '#E8E8E8',          # Silver
+    'McLaren': '#FF8700',           # Orange
+    'Aston Martin': '#00644B',      # Green
+    'Alpine': '#0082FA',            # Blue
+    'Williams': '#005AFF',          # Blue
+    'Haas': '#FFFFFF',              # White
+    'Sauber': '#00644B',            # Green
+    'RB': '#00008F',                # Dark Blue
+}
+
+# Driver number to team mapping (2024 season)
+DRIVER_TEAMS = {
+    1: 'Red Bull', 11: 'Red Bull',              # Verstappen, Perez
+    44: 'Mercedes', 63: 'Mercedes',             # Hamilton, Russell
+    16: 'Ferrari', 55: 'Ferrari',               # Leclerc, Sainz
+    81: 'McLaren', 4: 'McLaren',                # Norris, Piastri
+    14: 'Aston Martin', 18: 'Aston Martin',     # Alonso, Stroll
+    31: 'Alpine', 9: 'Alpine',                  # Ocon, Gasly
+    24: 'Williams', 2: 'Williams',              # Zhou, Sargeant
+    22: 'RB', 45: 'RB',                         # Tsunoda, Ricciardo
+    20: 'Haas', 27: 'Haas',                     # Magnussen, Hulkenberg
+    99: 'Sauber', 77: 'Sauber',                 # Sauber team drivers
+}
+
+
+def get_driver_team_color(driver_number):
+    """Get team color for a driver"""
+    team = DRIVER_TEAMS.get(driver_number, 'Default')
+    return TEAM_COLORS.get(team, '#808080')
+
+
+def get_driver_initials(session, driver_number):
+    """Get driver initials or number"""
+    try:
+        driver_info = session.get_driver(driver_number)
+        if driver_info and hasattr(driver_info, 'short_name'):
+            initials = driver_info.short_name[:3].upper()
+            return initials
+    except:
+        pass
+    return str(driver_number)
+
+
+def create_driver_marker_text(driver_number, initials=''):
+    """Create marker text (driver number or initials)"""
+    if initials and len(initials) > 0:
+        return initials
+    return str(driver_number)
+
+
+def add_logo_marker(ax, x, y, driver_number, session=None, size=150):
+    """
+    Add a driver marker with logo circle at position (x, y)
+    Uses driver number in colored circle (team color)
+    """
+    team_color = get_driver_team_color(driver_number)
+    
+    # Create driver identifier
+    if session:
+        identifier = get_driver_initials(session, driver_number)
+    else:
+        identifier = create_driver_marker_text(driver_number)
+    
+    # Create a circle with driver number/initials
+    circle = Circle((x, y), radius=size*0.003, color=team_color, ec='white', 
+                   linewidth=2, zorder=10, alpha=0.9)
+    ax.add_patch(circle)
+    
+    # Add text on top
+    ax.text(x, y, identifier, ha='center', va='center', 
+           fontsize=8, fontweight='bold', color='white', zorder=11)
 
 
 def plot_position_changes_over_race(session, driver_names_map=None):
@@ -409,9 +488,16 @@ def plot_dynamic_track_animation(session, driver, driver_names_map=None, frame_s
         # Plot the complete lap line
         ax.plot(telemetry['X'], telemetry['Y'], 'k--', alpha=0.3, linewidth=1, label='Lap Track')
         
-        # Initialize animated elements
-        car, = ax.plot([], [], 'o', color='#FF0000', markersize=12, label='Car Position', zorder=5)
-        trajectory, = ax.plot([], [], 'b-', alpha=0.6, linewidth=2, label='Trajectory')
+        # Get team color for the driver
+        team_color = get_driver_team_color(driver)
+        driver_identifier = get_driver_initials(session, driver)
+        
+        # Initialize animated elements with team colors
+        car, = ax.plot([], [], 'o', color=team_color, markersize=14, label='Car Position', zorder=5, 
+                      markeredgecolor='white', markeredgewidth=2)
+        car_label = ax.text([], [], '', fontsize=8, ha='center', va='center',
+                           fontweight='bold', color='white', zorder=6)
+        trajectory, = ax.plot([], [], '-', color=team_color, alpha=0.6, linewidth=2.5, label='Trajectory')
         speed_text = ax.text(0.02, 0.98, '', transform=ax.transAxes, 
                            fontsize=12, verticalalignment='top',
                            bbox=dict(boxstyle='round', facecolor='wheat', alpha=0.8))
@@ -437,13 +523,17 @@ def plot_dynamic_track_animation(session, driver, driver_names_map=None, frame_s
         def animate(frame):
             """Animation update function"""
             if frame >= len(telemetry_anim):
-                return car, trajectory, speed_text, lap_time_text, progress_text
+                return car, car_label, trajectory, speed_text, lap_time_text, progress_text
             
             # Get current telemetry point
             current = telemetry_anim.iloc[frame]
             
             # Update car position
             car.set_data([current['X']], [current['Y']])
+            
+            # Update car label
+            car_label.set_position((current['X'], current['Y']))
+            car_label.set_text(driver_identifier)
             
             # Update trajectory
             trajectory_x.append(current['X'])
@@ -463,7 +553,7 @@ def plot_dynamic_track_animation(session, driver, driver_names_map=None, frame_s
             progress = (frame / len(telemetry_anim)) * 100
             progress_text.set_text(f'Progress: {progress:.1f}%')
             
-            return car, trajectory, speed_text, lap_time_text, progress_text
+            return car, car_label, trajectory, speed_text, lap_time_text, progress_text
         
         # Create animation
         anim = animation.FuncAnimation(fig, animate, frames=len(telemetry_anim),
@@ -569,6 +659,7 @@ def plot_multi_driver_race_animation(session, drivers_list, driver_names_map=Non
         
         # Plot track lines and initialize car objects
         car_objects = {}
+        car_text_objects = {}
         trajectory_objects = {}
         trajectory_data = {}
         
@@ -579,9 +670,18 @@ def plot_multi_driver_race_animation(session, drivers_list, driver_names_map=Non
             # Plot track
             ax.plot(telemetry['X'], telemetry['Y'], '--', color=color, alpha=0.2, linewidth=1)
             
-            # Create car marker
-            car, = ax.plot([], [], 'o', color=color, markersize=10, label=f"{driver}", zorder=5)
+            # Get team color for the driver
+            team_color = get_driver_team_color(driver)
+            
+            # Create car marker with team color circle
+            car, = ax.plot([], [], 'o', color=team_color, markersize=12, 
+                          label=f"{driver}", zorder=5, markeredgecolor='white', markeredgewidth=1.5)
             car_objects[driver] = car
+            
+            # Create text label for driver number/initials  
+            identifier = create_driver_marker_text(driver, get_driver_initials(session, driver))
+            car_text, = ax.plot([], [], 'o', color=team_color, markersize=1, zorder=4)  # Invisible marker for text
+            car_text_objects[driver] = {'marker': car_text, 'identifier': identifier}
             
             # Create trajectory line
             traj, = ax.plot([], [], '-', color=color, alpha=0.6, linewidth=2)
@@ -848,63 +948,111 @@ def plot_live_track_position_animation(session, driver_names_map=None, points_pe
         
         # Load telemetry data for all drivers across multiple laps
         driver_telemetries = {}
+        drivers_attempted = 0
+        drivers_failed = 0
         
-        for driver in drivers:
-            try:
-                laps = all_laps[all_laps['Driver'] == driver]
-                
-                if len(laps) == 0:
-                    continue
-                
-                # Get valid laps with telemetry
-                valid_laps = laps[laps['LapTime'].notna()]
-                
-                if len(valid_laps) < 1:
-                    continue
-                
-                # Collect telemetry for multiple laps
-                all_telemetry_points = []
-                lap_change_indices = []
-                
-                for idx, (_, lap) in enumerate(valid_laps.head(20).iterrows()):  # First 20 laps
-                    try:
-                        telemetry = lap.get_telemetry()
-                        
-                        if telemetry is not None and len(telemetry) > 0:
-                            # Add lap number information
-                            telemetry_with_lap = telemetry.copy()
-                            telemetry_with_lap['LapNum'] = int(lap['LapNumber'])
-                            all_telemetry_points.append(telemetry_with_lap)
-                            
-                            if len(all_telemetry_points) > 1:
-                                lap_change_indices.append(
-                                    lap_change_indices[-1] + len(telemetry) if lap_change_indices else len(telemetry)
-                                )
-                    except:
+        with st.spinner("Loading telemetry data from drivers..."):
+            for driver in drivers:
+                drivers_attempted += 1
+                try:
+                    laps = all_laps[all_laps['Driver'] == driver]
+                    
+                    if len(laps) == 0:
+                        drivers_failed += 1
                         continue
-                
-                if all_telemetry_points:
-                    combined_telemetry = pd.concat(all_telemetry_points, ignore_index=True)
-                    driver_telemetries[driver] = {
-                        'telemetry': combined_telemetry,
-                        'color': driver_colors[driver],
-                        'max_laps': len(all_telemetry_points)
-                    }
-            except:
-                continue
+                    
+                    # Get valid laps with telemetry
+                    valid_laps = laps[laps['LapTime'].notna()]
+                    
+                    if len(valid_laps) < 1:
+                        drivers_failed += 1
+                        continue
+                    
+                    # Try to collect telemetry for multiple laps
+                    all_telemetry_points = []
+                    lap_change_indices = []
+                    
+                    for idx, (_, lap) in enumerate(valid_laps.head(20).iterrows()):  # First 20 laps
+                        try:
+                            telemetry = lap.get_telemetry()
+                            
+                            if telemetry is not None and len(telemetry) > 0:
+                                # Validate telemetry has required columns and data
+                                if 'X' in telemetry.columns and 'Y' in telemetry.columns:
+                                    # Check if coordinates are valid (not all NaN)
+                                    if not (telemetry['X'].isna().all() or telemetry['Y'].isna().all()):
+                                        # Add lap number information
+                                        telemetry_with_lap = telemetry.copy()
+                                        telemetry_with_lap['LapNum'] = int(lap['LapNumber'])
+                                        all_telemetry_points.append(telemetry_with_lap)
+                                        
+                                        if len(all_telemetry_points) > 1:
+                                            lap_change_indices.append(
+                                                lap_change_indices[-1] + len(telemetry) if lap_change_indices else len(telemetry)
+                                            )
+                        except Exception as lap_error:
+                            continue
+                    
+                    # If multi-lap telemetry collection failed or insufficient data, fallback to fastest lap
+                    if not all_telemetry_points:
+                        try:
+                            # Fallback: Use only the fastest lap
+                            fastest_lap = valid_laps.loc[valid_laps['LapTime'].idxmin()]
+                            fallback_telemetry = fastest_lap.get_telemetry()
+                            
+                            if fallback_telemetry is not None and len(fallback_telemetry) > 0:
+                                # Validate fallback telemetry
+                                if 'X' in fallback_telemetry.columns and 'Y' in fallback_telemetry.columns:
+                                    if not (fallback_telemetry['X'].isna().all() or fallback_telemetry['Y'].isna().all()):
+                                        fallback_telemetry_with_lap = fallback_telemetry.copy()
+                                        fallback_telemetry_with_lap['LapNum'] = int(fastest_lap['LapNumber'])
+                                        all_telemetry_points = [fallback_telemetry_with_lap]
+                        except Exception as fallback_error:
+                            drivers_failed += 1
+                            continue
+                    
+                    # Add to collection if we have any data
+                    if all_telemetry_points:
+                        combined_telemetry = pd.concat(all_telemetry_points, ignore_index=True)
+                        # Final validation: ensure we have valid X,Y data
+                        if not (combined_telemetry['X'].isna().all() or combined_telemetry['Y'].isna().all()):
+                            driver_telemetries[driver] = {
+                                'telemetry': combined_telemetry,
+                                'color': driver_colors[driver],
+                                'max_laps': len(all_telemetry_points)
+                            }
+                        else:
+                            drivers_failed += 1
+                    else:
+                        drivers_failed += 1
+                except Exception as driver_error:
+                    drivers_failed += 1
+                    continue
         
         if not driver_telemetries:
-            st.warning("Could not load telemetry data for animation")
+            st.error(f"Could not load telemetry data for animation. Attempted {drivers_attempted} drivers, but none had valid coordinate data.")
+            st.info("This race may not have complete track geometry data. Try these alternatives:\n"
+                   "1. Select a different race (2023-2026 have better data)\n"
+                   "2. Use 'Single Driver Animation' instead (uses fastest lap)\n"
+                   "3. Try 'Multi-Driver Animation' for comparison mode")
             return
         
         # Get track bounds
-        all_x = np.concatenate([data['telemetry']['X'].values for data in driver_telemetries.values()])
-        all_y = np.concatenate([data['telemetry']['Y'].values for data in driver_telemetries.values()])
-        
-        x_min, x_max = all_x.min(), all_x.max()
-        y_min, y_max = all_y.min(), all_y.max()
-        x_margin = (x_max - x_min) * 0.15
-        y_margin = (y_max - y_min) * 0.15
+        try:
+            all_x = np.concatenate([data['telemetry']['X'].dropna().values for data in driver_telemetries.values()])
+            all_y = np.concatenate([data['telemetry']['Y'].dropna().values for data in driver_telemetries.values()])
+            
+            if len(all_x) == 0 or len(all_y) == 0:
+                st.error("No valid track coordinate data available.")
+                return
+            
+            x_min, x_max = all_x.min(), all_x.max()
+            y_min, y_max = all_y.min(), all_y.max()
+            x_margin = (x_max - x_min) * 0.15
+            y_margin = (y_max - y_min) * 0.15
+        except Exception as bounds_error:
+            st.error(f"Error processing track coordinates: {str(bounds_error)}")
+            return
         
         # Create figure
         fig, ax = plt.subplots(figsize=(16, 12))
@@ -918,29 +1066,47 @@ def plot_live_track_position_animation(session, driver_names_map=None, points_pe
         ax.grid(True, alpha=0.2)
         
         # Plot track outline for reference
-        for driver, data in driver_telemetries.items():
-            telemetry = data['telemetry']
-            ax.plot(telemetry.groupby('LapNum')['X'].apply(list).iloc[0], 
-                   telemetry.groupby('LapNum')['Y'].apply(list).iloc[0],
-                   color='gray', alpha=0.2, linewidth=1, zorder=1)
-            break  # Only need to draw track once
+        try:
+            for driver, data in driver_telemetries.items():
+                telemetry = data['telemetry']
+                if 'X' in telemetry.columns and 'Y' in telemetry.columns:
+                    # Get first lap track coordinates
+                    first_lap_data = telemetry[telemetry['LapNum'] == telemetry['LapNum'].min()]
+                    if len(first_lap_data) > 0:
+                        x_coords = first_lap_data['X'].dropna().values
+                        y_coords = first_lap_data['Y'].dropna().values
+                        if len(x_coords) > 0 and len(y_coords) > 0:
+                            ax.plot(x_coords, y_coords, color='gray', alpha=0.2, linewidth=1, zorder=1)
+                            break  # Only need to draw track once
+        except Exception as track_error:
+            pass  # Skip track outline if there's an issue
         
         # Create car positions and labels
         car_markers = {}
         car_labels = {}
+        driver_identifiers = {}
         trajectories = {}
         
         for driver, data in driver_telemetries.items():
-            marker, = ax.plot([], [], 'o', color=data['color'], markersize=12, 
+            # Get team color for better visibility
+            team_color = get_driver_team_color(driver)
+            
+            # Create marker with team color and white edge
+            marker, = ax.plot([], [], 'o', color=team_color, markersize=14, 
                             label=f"{driver} - {driver_names_map.get(str(driver), 'Unknown')}" if driver_names_map else str(driver),
-                            zorder=5)
+                            zorder=5, markeredgecolor='white', markeredgewidth=2)
             car_markers[driver] = marker
             
-            label = ax.text(0, 0, '', fontsize=9, ha='center', 
-                          bbox=dict(boxstyle='round', facecolor=data['color'], alpha=0.7))
+            # Get driver identifier (initials or number)
+            identifier = get_driver_initials(session, driver) if session else str(driver)
+            driver_identifiers[driver] = identifier
+            
+            # Create label text for driver identifier
+            label = ax.text(0, 0, '', fontsize=10, ha='center', va='center',
+                          fontweight='bold', color='white', zorder=6)
             car_labels[driver] = label
             
-            traj, = ax.plot([], [], color=data['color'], alpha=0.4, linewidth=1, zorder=2)
+            traj, = ax.plot([], [], color=team_color, alpha=0.4, linewidth=1.5, zorder=2)
             trajectories[driver] = {'line': traj, 'x': [], 'y': []}
         
         # Info text
@@ -966,13 +1132,18 @@ def plot_live_track_position_animation(session, driver_names_map=None, points_pe
                 if point_idx < len(telemetry):
                     current = telemetry.iloc[point_idx]
                     
+                    # Skip if coordinates are NaN
+                    if pd.isna(current['X']) or pd.isna(current['Y']):
+                        continue
+                    
                     # Update car position
                     car_markers[driver].set_data([current['X']], [current['Y']])
                     
-                    # Update car label with lap info
+                    # Update driver identifier label
                     lap_num = int(current.get('LapNum', 1))
+                    identifier = driver_identifiers[driver]
                     car_labels[driver].set_position((current['X'], current['Y']))
-                    car_labels[driver].set_text(f"{driver}\nL{lap_num}")
+                    car_labels[driver].set_text(f"{identifier}")
                     
                     # Update trajectory (keep last 50 points)
                     trajectories[driver]['x'].append(current['X'])

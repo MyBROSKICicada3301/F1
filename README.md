@@ -60,21 +60,23 @@ Open `http://localhost:8501` in your browser(currently testing locally).
 - **Added dynamic race animations** - GIF-based animations showing lap-by-lap progression  
 - **Fixed track visualization errors** - Removed deprecated `plot_track` function calls  
 - **Improved telemetry handling** - Better NaN value filtering for robustness  
-- **Added multi-driver race animation** - Simultaneous visualization of multiple drivers  
+- **Added multi-driver race animation** - Simultaneous visualization of multiple drivers
+- **Fixed Live Track Position Animation** - Added fallback to single lap telemetry when multi-lap data unavailable  
 
 ## To-Do
 
-### Bug Fixes
-- [ ] Fix Live Track Position Animation - "Could not load telemetry data for animation" error
-  - Issue: Some races/drivers missing telemetry data across multiple laps
-  - Solution: Add fallback to single lap telemetry or interpolate data(need to see which is best)
-
 ### New Features
 - [ ] Add team logos for driver representation (Ferrari, Mercedes, Red Bull, etc.)
+- [ ] Add color to driver index based on team
 - [ ] Improve UI with gradient backgrounds and modern color schemes
 - [ ] Add championship standings prediction using Monte Carlo
 - [ ] Add real-time standings widget during race
 - [ ] Implement dark mode/accessibility toggle
+- [ ] Add interactive tooltips showing driver info on hover
+- [ ] Implement sector corner annotations on track maps
+- [ ] Create weather analysis dashboards
+- [ ] Generate exportable PDF pit wall reports
+- [ ] Optimize performance for 50+ lap races with real-time updates
 
 ## Installation Details
 
@@ -101,11 +103,10 @@ Open `http://localhost:8501` in your browser(currently testing locally).
 - Animations are normal for first run; cached on subsequent loads
 
 **Live Track Position Animation shows "Could not load telemetry data"**
-- This occurs when a race/driver has incomplete telemetry across laps
-- Try selecting a different race or driver
-- Works best with recent races (2023-2026) that have complete data
-- Workaround: Use "Single Driver Animation" instead
-- Fix to be added soon: Will add fallback to single lap or interpolated data
+- This now automatically falls back to fastest lap data if multi-lap data is unavailable
+- If this persists, try selecting a different race or driver
+- Works best with recent races (2023-2026) that have complete telemetry
+- Alternative: Use "Single Driver Animation" which uses fastest lap data
 
 **Missing driver data**
 - Some drivers may have incomplete data for certain sessions
